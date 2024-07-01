@@ -21,8 +21,8 @@ type Receipt struct {
 }
 
 type SplitCheckPerson struct {
-	Person string `json:"person,omitempty"`
-	Cost   string `json:"cost,omitempty"`
+	Person string  `json:"person,omitempty"`
+	Cost   float32 `json:"cost,omitempty"`
 }
 
 type SplitCheck struct {
@@ -39,26 +39,47 @@ func (e *ValidationError) Error() string {
 }
 
 func (r Receipt) split() SplitCheck {
+	costMap := map[string]float32{}
 
+	for _, i := range r.LineItems {
+		costMap[i.Person] += i.Cost
+	}
+
+	var checkPeople []SplitCheckPerson
+
+	for person, cost := range costMap {
+		proportion := cost / r.Subtotal
+
+		split := SplitCheckPerson{
+			Person: person,
+			Cost:   proportion * r.TotalCost,
+		}
+
+		checkPeople = append(checkPeople, split)
+	}
+
+	return SplitCheck{
+		People: checkPeople,
+	}
 }
 
-func (r Receipt) validate() (bool, error) {
+func (r Receipt) validate() error {
 	if r.Subtotal > r.TotalCost {
-		return false, &ValidationError{
+		return &ValidationError{
 			Receipt: r,
 			Msg:     "Subtotal cannot be more than TotalCost",
 		}
 	}
 
 	if r.Subtotal <= 0 || r.TotalCost <= 0 {
-		return false, &ValidationError{
+		return &ValidationError{
 			Receipt: r,
 			Msg:     "Both Subtotal and TotalCost must be greater than zero",
 		}
 	}
 
 	if len(r.LineItems) == 0 {
-		return false, &ValidationError{
+		return &ValidationError{
 			Receipt: r,
 			Msg:     "There must be at least one line item",
 		}
@@ -72,13 +93,13 @@ func (r Receipt) validate() (bool, error) {
 	}
 
 	if runningSubtotal-r.Subtotal != 0 {
-		return false, &ValidationError{
+		return &ValidationError{
 			Receipt: r,
 			Msg:     "The sum of line items does not match the Subtotal",
 		}
 	}
 
-	return true, nil
+	return nil
 
 }
 
@@ -91,14 +112,16 @@ func hello(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	status, err := rc.validate()
+	err = rc.validate()
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return
 	}
 
-	log.Println(status)
+	response := json.NewEncoder(w)
+
+	response.Encode(rc.split())
 }
 
 func main() {
