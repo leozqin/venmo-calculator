@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/cors"
 )
 
 type LineItem struct {
@@ -65,6 +67,7 @@ func (r Receipt) split() SplitCheck {
 
 func (r Receipt) validate() error {
 	if r.Subtotal > r.TotalCost {
+		log.Printf("Subtotal: %v, Total: %v", r.Subtotal, r.TotalCost)
 		return &ValidationError{
 			Receipt: r,
 			Msg:     "Subtotal cannot be more than TotalCost",
@@ -89,7 +92,6 @@ func (r Receipt) validate() error {
 
 	for _, m := range r.LineItems {
 		runningSubtotal += m.Cost
-		log.Println(runningSubtotal)
 	}
 
 	if runningSubtotal-r.Subtotal != 0 {
@@ -116,6 +118,7 @@ func hello(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+		log.Println(err.Error())
 		return
 	}
 
@@ -125,9 +128,27 @@ func hello(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	baseUrl, ok := os.LookupEnv("BASE_URL")
+	if !ok {
+		baseUrl = "http://localhost:8080"
+	}
+	log.Println(baseUrl)
 	r := chi.NewRouter()
 
-	r.Route("/", func(r chi.Router) {
+	r.Use(
+		cors.Handler(
+			cors.Options{
+				AllowedOrigins:   []string{baseUrl},
+				AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
+				AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+				ExposedHeaders:   []string{"Link"},
+				AllowCredentials: false,
+				MaxAge:           300,
+			},
+		),
+	)
+
+	r.Route("/split", func(r chi.Router) {
 		r.Post("/", hello)
 	})
 
