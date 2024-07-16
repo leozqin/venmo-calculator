@@ -2,10 +2,12 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 
+	"github.com/Rhymond/go-money"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
 )
@@ -14,6 +16,7 @@ type LineItem struct {
 	Item   string  `json:"item,omitempty"`
 	Cost   float32 `json:"cost,omitempty"`
 	Person string  `json:"person,omitempty"`
+	Shared bool    `json:"shared,omitempty"`
 }
 
 type Receipt struct {
@@ -42,15 +45,21 @@ func (e *ValidationError) Error() string {
 
 func (r Receipt) split() SplitCheck {
 	costMap := map[string]float32{}
+	var shared float32 = 0.0
 
 	for _, i := range r.LineItems {
-		costMap[i.Person] += i.Cost
+		if i.Shared {
+			shared += i.Cost
+		} else {
+			costMap[i.Person] += i.Cost
+		}
 	}
 
 	var checkPeople []SplitCheckPerson
+	var sharedSplit float32 = shared / float32(len(costMap))
 
 	for person, cost := range costMap {
-		proportion := cost / r.Subtotal
+		proportion := (cost + sharedSplit) / r.Subtotal
 
 		split := SplitCheckPerson{
 			Person: person,
@@ -94,10 +103,15 @@ func (r Receipt) validate() error {
 		runningSubtotal += m.Cost
 	}
 
-	if runningSubtotal-r.Subtotal != 0 {
+	runningSubtotalMoney := money.NewFromFloat(float64(runningSubtotal), money.USD)
+	subTotalMoney := money.NewFromFloat(float64(r.Subtotal), money.USD)
+
+	matches, _ := runningSubtotalMoney.Equals(subTotalMoney)
+
+	if !(matches) {
 		return &ValidationError{
 			Receipt: r,
-			Msg:     "The sum of line items does not match the Subtotal",
+			Msg:     fmt.Sprintf("The sum of line items (%v) does not match the Subtotal (%v)", runningSubtotalMoney.Display(), subTotalMoney.Display()),
 		}
 	}
 

@@ -5,26 +5,30 @@
       <div class="totals">
         <div class="receipt-field">
           <label class="receipt-field-label">Total: </label>
-          <input type="text" v-model.number="total" />
+          <input class="receipt-field-input" type="text" v-model.number="total" />
         </div>
         <div class="receipt-field">
           <label class="receipt-field-label">Subtotal: </label>
-          <input type="text" v-model.number="subtotal" />
+          <input class="receipt-field-input" type="text" v-model.number="subtotal" />
         </div>
       </div>
       <h1>Line Items</h1>
       <div v-for="(_, index) of Array(lineItemCount)" class="line-item">
         <div class="receipt-field">
           <label class="receipt-field-label">Item: </label>
-          <input type="text" v-model="lineItems[index].item" />
+          <input class="receipt-field-input" type="text" v-model="lineItems[index].item" />
         </div>
         <div class="receipt-field">
           <label class="receipt-field-label">Person: </label>
-          <input type="text" v-model="lineItems[index].person" />
+          <input class="receipt-field-input" type="text" v-model="lineItems[index].person" />
         </div>
         <div class="receipt-field">
           <label class="receipt-field-label">Cost: </label>
-          <input type="text" v-model.number="lineItems[index].cost" />
+          <input class="receipt-field-input" type="text" v-model.number="lineItems[index].cost" />
+        </div>
+        <div class="receipt-field checkbox-container">
+          <label class="receipt-field-label">Shared: </label>
+          <input class="receipt-field-input" type="checkbox" v-model.number="lineItems[index].shared" />
         </div>
       </div>
       <button @click="addEmptyLineItem">Add Line Item</button>
@@ -43,13 +47,19 @@
 
 <style scoped>
 .receipt-field {
-  margin-top: 2%;
+  margin-top: 4%;
   margin-bottom: 2%;
-  width: 100%;
 }
 
 .receipt-field-label {
   font-size: 1.2em;
+  vertical-align: middle;
+}
+
+.receipt-field-input {
+  width: 75%;
+  vertical-align: middle;
+  float: right;
 }
 
 .line-item {
@@ -61,13 +71,7 @@
   padding-bottom: 2%;
   border-radius: 5%;
 }
-
-.split {
-}
-
-.split-person {
-}
-
+ 
 .totals {
   border: solid 1px;
   margin-top: 1%;
